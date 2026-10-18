@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mercado — Catalog translation demo</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="announcement"><span id="announcement-main">Free delivery on orders over $35</span><span>·</span><span id="announcement-return">Easy returns</span></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Mercado home"><span class="brand-mark">m</span> mercado<span class="brand-period">.</span></a>
+      <div class="delivery"><span class="pin">⌖</span><span><small id="deliver-label">Deliver to</small><strong>San Francisco 94103</strong></span></div>
+      <form class="search" id="search-form"><input aria-label="Search products" placeholder="Search Mercado"><button aria-label="Search">⌕</button></form>
+      <div class="header-links"><span class="account"><small id="hello-label">Hello, guest</small><strong id="account-label">Account</strong></span><button class="language" id="language-toggle" aria-label="Switch language">🇺🇸 <span>EN</span>⌄</button><span class="cart">♧ <b id="cart-label">Cart</b></span></div>
+    </header>
+    <nav class="subnav"><span id="all-label">☰ &nbsp; All</span><span id="deals-label">Today's deals</span><span id="service-label">Customer service</span><span id="gifts-label">Gift cards</span><span id="sell-label">Sell</span><span class="nav-right" id="nav-note">Delivering happiness, worldwide</span></nav>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-dot"></span> <span id="hero-eyebrow">A world of discovery</span></div>
+          <h1><span id="hero-title-first">Good finds.</span><br><em id="hero-title-second">Everywhere.</em></h1>
+          <p id="hero-description">Explore thoughtful picks for your home, your routine, and everything in between.</p>
+          <a class="hero-link" href="#catalog"><span id="hero-link-label">Find your next favorite</span><span>↗</span></a>
+        </div>
+        <div class="hero-art" aria-hidden="true"><div class="sun"></div><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div><div class="art-product">✳</div><span class="art-caption">CURATED FOR YOU</span></div>
+        <div class="hero-note"><span>✳</span><span id="hero-note-label">Fresh picks<br>for every day</span></div>
+      </section>
+
+      <section class="catalog-section" id="catalog">
+        <div class="catalog-heading">
+          <div><div class="section-kicker" id="section-kicker">THE EVERYDAY EDIT</div><h2 id="catalog-title">A few things you'll love.</h2><p id="catalog-subtitle">Customer favorites, picked just for you.</p></div>
+          <div class="heading-actions"><span class="result-count" id="result-count">4 finds</span><button class="sort-button"><span id="sort-label">Featured</span> <span>⌄</span></button></div>
+        </div>
+        <div class="translation-note" id="translation-note"><span class="status-dot"></span><span id="translation-status">Loading catalog…</span><span class="note-separator">·</span><span id="cache-status">On-demand translation</span></div>
+        <div class="product-grid" id="product-grid" aria-live="polite"></div>
+      </section>
+    </main>
+    <footer><span>mercado<span class="brand-period">.</span></span><span id="footer-note">Made for curious living.</span><span id="preference-note">Translation preference stays on this device in this demo.</span></footer>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

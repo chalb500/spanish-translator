@@ -1,0 +1,13 @@
+{
+  "name": "catalog-translation-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "evaluate": "node scripts/evaluate.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
