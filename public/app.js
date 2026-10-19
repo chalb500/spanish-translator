@@ -16,7 +16,7 @@ const copy = {
     language: "🇺🇸 EN",
     chrome: {
       announcement: "Free delivery on orders over $35", returns: "Easy returns", deliver: "Deliver to",
-      hello: "Hello, guest", account: "Account", cart: "Cart", all: "☰ &nbsp; All",
+      hello: "Hello, guest", account: "Account", cart: "Cart", all: "☰   All",
       deals: "Today's deals", service: "Customer service", gifts: "Gift cards", sell: "Sell",
       nav: "Delivering happiness, worldwide", eyebrow: "A world of discovery",
       heroTitleFirst: "Good finds.", heroTitleSecond: "Everywhere.",
@@ -42,7 +42,7 @@ const copy = {
     language: "🇪🇸 ES",
     chrome: {
       announcement: "Envío gratis en pedidos superiores a $35", returns: "Devoluciones sencillas", deliver: "Entrega en",
-      hello: "Hola, invitado", account: "Cuenta", cart: "Carrito", all: "☰ &nbsp; Todo",
+      hello: "Hola, invitado", account: "Cuenta", cart: "Carrito", all: "☰   Todo",
       deals: "Ofertas del día", service: "Atención al cliente", gifts: "Tarjetas de regalo", sell: "Vender",
       nav: "Llevamos alegría a todo el mundo", eyebrow: "Un mundo por descubrir",
       heroTitleFirst: "Buenos hallazgos.", heroTitleSecond: "En todas partes.",
@@ -55,26 +55,93 @@ const copy = {
 
 const grid = document.querySelector("#product-grid");
 const toggle = document.querySelector("#language-toggle");
-let locale = localStorage.getItem("catalog-locale") === "es" ? "es" : "en";
+const params = new URLSearchParams(location.search);
+const display = params.get("view") === "display";
+const locale = display ? "es" : "en";
+const session = params.get("session") || crypto.randomUUID();
+params.set("session", session);
+params.set("view", display ? "display" : "sales");
+history.replaceState(null, "", `?${params}`);
+const channel = new BroadcastChannel(`sales:${session}`);
+let state = { visible: null, selected: null, cart: {}, saved: [], section: "" };
+if (!display) {
+  try { state = JSON.parse(sessionStorage.getItem(`sales:${session}`)) || state; } catch { /* Start a fresh session when storage is unavailable. */ }
+}
+let catalog = [];
+let lastContact = 0;
+let customerWindow;
+let popupBlocked = false;
+let renderedSection;
+let lastRenderedState = "";
+const sessionStatus = document.querySelector("#session-status");
+const openDisplay = document.querySelector("#open-display");
+openDisplay.hidden = display;
+openDisplay.addEventListener("click", () => {
+  customerWindow = window.open(`/?view=display&session=${encodeURIComponent(session)}`, `display-${session}`, "popup,width=1200,height=900");
+  popupBlocked = !customerWindow;
+  if (!customerWindow) sessionStatus.textContent = "Popup blocked. Allow popups and click Open Spanish display again.";
+  else customerWindow.focus();
+});
+function publish() {
+  if (!display) channel.postMessage({ type: "state", state });
+}
+channel.onmessage = ({ data }) => {
+  if (display && data.type === "state") {
+    lastContact = Date.now();
+    state = data.state;
+    renderSession();
+    channel.postMessage({ type: "present" });
+  } else if (!display && (data.type === "ready" || data.type === "present")) {
+    lastContact = Date.now();
+    if (data.type === "ready") publish();
+  }
+};
+channel.postMessage({ type: "ready" });
+setInterval(() => {
+  if (display) channel.postMessage({ type: "ready" });
+  else publish();
+  const connected = Date.now() - lastContact < 3500;
+  if (popupBlocked) return;
+  sessionStatus.textContent = display
+    ? (connected ? "Pantalla en espa?ol ? Solo lectura ? Conectada" : "Esperando conexi?n con el vendedor; los datos pueden estar desactualizados.")
+    : (connected ? "English sales view ? Spanish display connected" : "English sales view ? Spanish display disconnected");
+}, 1000);
+function renderSession() {
+  const signature = JSON.stringify(state);
+  if (signature === lastRenderedState || !catalog.length) return;
+  lastRenderedState = signature;
+  renderProducts(catalog.filter(product => state.visible === null || state.visible.includes(product.id)));
+  document.querySelector("#cart-label").textContent = `${copy[locale].chrome.cart} (${Object.values(state.cart).reduce((sum, n) => sum + n, 0)})`;
+  if (display && renderedSection !== state.section) {
+    if (state.section === "catalog") document.querySelector("#catalog").scrollIntoView();
+    else window.scrollTo(0, 0);
+    renderedSection = state.section;
+  }
+}
+function commit() {
+  try { sessionStorage.setItem(`sales:${session}`, JSON.stringify(state)); } catch { /* Synchronization does not require storage. */ }
+  renderSession(); publish();
+}
 let pending = false;
 
 function renderProducts(products) {
   grid.innerHTML = products.map((product, index) => `
-    <article class="product-card">
+    <article class="product-card ${state.selected === product.id ? "selected" : ""}" data-id="${escapeHtml(product.id)}">
       <div class="product-visual ${product.color}">
         <span class="product-category">${escapeHtml(product.category)}</span>
         <span class="product-emoji" aria-hidden="true">${product.emoji}</span>
-        <button class="favorite" aria-label="${copy[locale].save} ${escapeHtml(product.title)}">♡</button>
+        <button ${display ? "disabled" : ""} aria-pressed="${state.saved.includes(product.id)}" class="favorite" aria-label="${copy[locale].save} ${escapeHtml(product.title)}">♡</button>
         ${index === 0 ? `<span class="bestseller">${copy[locale].bestseller}</span>` : ""}
       </div>
       <div class="product-info">
         <div class="rating"><span>★★★★★</span><b>${product.rating.toFixed(1)}</b><small>(${product.reviews.toLocaleString()} ${copy[locale].reviews})</small></div>
-        <h3>${escapeHtml(product.title)}</h3>
+        <h3><button class="select-product" ${display ? "disabled" : ""} aria-pressed="${state.selected === product.id}">${escapeHtml(product.title)}</button></h3>
         <p class="product-description">${escapeHtml(product.description)}</p>
         <ul>${product.bullets.map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("")}</ul>
-        <div class="product-bottom"><div class="price"><span>$</span>${product.price.toFixed(2)}</div><button class="add-button">${copy[locale].add}<span>＋</span></button></div>
+        <div class="product-bottom"><div class="price"><span>$</span>${product.price.toFixed(2)}</div><button class="add-button" ${display ? "disabled" : ""}>${copy[locale].add}<span>＋</span></button></div>
       </div>
-    </article>`).join("");
+    </article>`).join("") || `<p>${display ? "No hay productos que coincidan." : "No matching products."}</p>`;
+  document.querySelector("#result-count").textContent = `${products.length} ${copy[locale].finds}`;
 }
 
 function escapeHtml(value) {
@@ -95,7 +162,9 @@ async function loadCatalog() {
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "Request failed");
-    renderProducts(payload.products);
+    catalog = payload.products;
+    lastRenderedState = "";
+    renderSession();
     const translation = payload.translation;
     document.querySelector("#translation-status").textContent =
       translation.provider === "AI provider"
@@ -103,9 +172,9 @@ async function loadCatalog() {
         : copy[locale].demo;
     document.querySelector("#cache-status").textContent =
       `${copy[locale].cached} · ${translation.cache.hitsThisRequest} hits · ${translation.providerLatencyMs} ms provider`;
-    document.querySelector("#result-count").textContent = `${payload.products.length} ${copy[locale].finds}`;
+
   } catch (error) {
-    grid.innerHTML = `<div class="error-state">${escapeHtml(error.message || copy[locale].error)} <button id="retry">Retry</button></div>`;
+    grid.innerHTML = `<div class="error-state">${escapeHtml(display ? copy[locale].error : error.message || copy[locale].error)} <button id="retry">${display ? "Reintentar" : "Retry"}</button></div>`;
     document.querySelector("#translation-status").textContent = copy[locale].error;
     document.querySelector("#retry")?.addEventListener("click", loadCatalog);
   } finally {
@@ -118,8 +187,8 @@ function updateChrome() {
   const text = copy[locale];
   document.documentElement.lang = locale;
   toggle.innerHTML = `${text.language} ⌄`;
-  toggle.setAttribute("aria-label", locale === "es" ? "Cambiar idioma" : "Switch language");
-  toggle.disabled = pending;
+  toggle.setAttribute("aria-label", display ? "Idioma: espa?ol" : "Language: English");
+  toggle.disabled = true;
   document.querySelector("#section-kicker").textContent = text.kicker;
   document.querySelector("#catalog-title").textContent = text.title;
   document.querySelector("#catalog-subtitle").textContent = text.subtitle;
@@ -146,16 +215,45 @@ function updateChrome() {
   document.querySelector("#hero-note-label").innerHTML = text.chrome.heroNote;
   document.querySelector("#sort-label").textContent = text.chrome.sort;
   document.querySelector("#footer-note").textContent = text.chrome.footer;
-  document.querySelector("#preference-note").textContent = text.chrome.preference;
+  document.querySelector("#preference-note").textContent = display ? "Pantalla del cliente ? Solo lectura" : "Move the Spanish window to the second monitor.";
+  document.title = display ? "Mercado ? Pantalla del cliente" : "Mercado ? Sales view";
+  document.querySelector(".art-caption").textContent = display ? "ELEGIDO PARA TI" : "CURATED FOR YOU";
+  document.querySelector("#search-form").hidden = display;
+  document.querySelector(".sort-button").disabled = true;
 }
 
-toggle.addEventListener("click", () => {
-  if (pending) return;
-  locale = locale === "en" ? "es" : "en";
-  localStorage.setItem("catalog-locale", locale);
-  loadCatalog();
+grid.addEventListener("click", (event) => {
+  if (display) return;
+  const card = event.target.closest("[data-id]");
+  if (!card) return;
+  const id = card.dataset.id;
+  if (event.target.closest(".add-button")) state.cart[id] = (state.cart[id] || 0) + 1;
+  else if (event.target.closest(".favorite")) state.saved = state.saved.includes(id) ? state.saved.filter(value => value !== id) : [...state.saved, id];
+  state.selected = id;
+  commit();
 });
-document.querySelector("#search-form").addEventListener("submit", (event) => event.preventDefault());
-
+document.querySelector("#search-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (display) return;
+  const query = event.currentTarget.querySelector("input").value.trim().toLowerCase();
+  state.visible = catalog.filter(product => [product.title, product.category, product.description].some(text => text.toLowerCase().includes(query))).map(product => product.id);
+  state.section = "catalog";
+  commit();
+});
+document.querySelector(".hero-link").addEventListener("click", (event) => {
+  event.preventDefault();
+  if (display) return;
+  state.section = "catalog";
+  document.querySelector("#catalog").scrollIntoView();
+  commit();
+});
+document.querySelector(".brand").addEventListener("click", (event) => {
+  event.preventDefault();
+  if (display) return;
+  state = { visible: null, selected: null, cart: state.cart, saved: state.saved, section: "" };
+  document.querySelector("#search-form input").value = "";
+  window.scrollTo(0, 0);
+  commit();
+});
 updateChrome();
 loadCatalog();

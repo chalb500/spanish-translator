@@ -8,7 +8,7 @@ This is sufficient to demonstrate that opt-in, on-demand catalog translation wit
 
 ## What the proof of concept contains
 
-The dependency-free storefront keeps English catalog data canonical and translates product text only when Spanish is requested. It demonstrates language preference, a server-side provider boundary, batched translation, and a content-hash cache. The bundled dictionary is only a fallback demo fixture; the real-provider evaluation is described above.
+The dependency-free storefront keeps English catalog data canonical and translates product text only when Spanish is requested. It demonstrates paired English/Spanish views, a server-side provider boundary, batched translation, and a content-hash cache. The bundled dictionary is only a fallback demo fixture; the real-provider evaluation is described above.
 
 ## Run locally
 
@@ -18,7 +18,13 @@ Requires Node.js 20 or newer. On Ubuntu, install Node.js and npm, then run:
 npm start
 ```
 
-Open <http://localhost:3000>. Use the language control in the header to switch locales. The preference is kept in this browser's local storage. Without credentials, the UI explicitly labels output as a limited demo dictionary; it can translate the sample catalog but is not AI.
+Open <http://localhost:3000> for the fixed English sales view. Click **Open Spanish display**, allow the popup if needed, and move that window onto the second monitor. Both windows must use the same browser profile and origin. Each sales session has its own URL session identifier; use a fresh root URL to start a separate session.
+
+The Spanish window is read-only. Product selection (click a product title), submitted English searches, saved products, cart quantities, and catalog/home navigation synchronize from the English window using a session-scoped BroadcastChannel. Searches synchronize matching product IDs so the Spanish display shows the same products without searching translated text. Both views show connection status; a disconnected display retains its last state with a stale-data notice. Reopening or refreshing the Spanish window requests the latest state. The English window keeps sales state in session storage for refreshes; this prototype does not create orders or persist transactions on the server. Monitor placement is manual.
+
+English remains canonical. Product text uses the existing server-side AI translation and cache; fixed interface labels use the bundled Spanish UI copy. Translation loading, failures, and retry remain visible on the Spanish display. This is a paired catalog demonstration, not mirroring of an arbitrary external application.
+
+Without credentials, the UI explicitly labels output as a limited demo dictionary; it can translate the sample catalog but is not AI.
 
 To evaluate real model-backed translation, first add API credits as described below, then run the platform-specific helper. It prompts for the API key without echoing it; do not put the key in browser code or a source file.
 
@@ -59,7 +65,7 @@ The evaluator starts a local server, requests the sample catalog twice, checks t
 ## What the prototype demonstrates
 
 - The catalog's English copy and non-linguistic product facts remain canonical.
-- The browser sends a locale preference; the server translates all customer-facing catalog text in one batch on a cache miss.
+- Each window sends its fixed locale; the server translates all customer-facing catalog text in one batch on a cache miss.
 - Repeated requests reuse SHA-256-keyed translations. The sample cache is in-memory, so it is intentionally lost on restart.
 - The AI credential stays on the server. Provider/model details can be swapped behind the translator boundary.
 - Validation and provider failures are visible to the caller.
@@ -69,7 +75,7 @@ The evaluator starts a local server, requests the sample catalog twice, checks t
 
 ```mermaid
 graph TD
-    A[Shopper chooses Spanish] --> B[Browser saves preference]
+    A[Salesperson opens Spanish display] --> B[Display joins shared sales session]
     B --> C[POST api catalog locale es]
     C --> D[API reads canonical English catalog]
     D --> E{Translation cache hit}
@@ -84,7 +90,7 @@ graph TD
     G -->|Provider error| M[Return error and show retry]
 ```
 
-For example, the browser sends this request when the shopper's saved preference is Spanish:
+For example, the Spanish display sends this request to load localized product copy:
 
 ```http
 POST /api/catalog HTTP/1.1
